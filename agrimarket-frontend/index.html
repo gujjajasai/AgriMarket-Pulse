@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriMarket Pulse</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 900px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; }
+        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="date"], button, select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .error { color: red; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #e2e2e2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AgriMarket Pulse Dashboard</h1>
+        <p>Real-time agricultural commodity price tracking and analysis.</p>
+
+        <div class="section">
+            <h2>1. Unique Commodities</h2>
+            <button onclick="getDistinctCommodities()">Get All Commodities</button>
+            <pre id="commoditiesOutput"></pre>
+        </div>
+
+        <div class="section">
+            <h2>2. Analyze Price Disparity</h2>
+            <label for="analysisCommodity">Commodity:</label>
+            <input type="text" id="analysisCommodity" placeholder="e.g., Onion (Common)">
+            <label for="analysisDate">Date (YYYY-MM-DD):</label>
+            <input type="date" id="analysisDate">
+            <button onclick="analyzePriceDisparity()">Analyze Price Disparity</button>
+            <pre id="disparityOutput"></pre>
+        </div>
+
+        <div class="section">
+            <h2>3. Price Records by Commodity</h2>
+            <label for="queryCommodity">Commodity:</label>
+            <input type="text" id="queryCommodity" placeholder="e.g., Potato (Desi)">
+            <button onclick="getPricesByCommodity()">Get Prices</button>
+            <div id="pricesTableContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // IMPORTANT: Replace this with your *public* backend URL later!
+        // For local testing, ensure your Docker Compose services are running.
+        const API_BASE_URL = 'http://localhost:8082/api'; 
+
+        async function fetchData(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                return { error: error.message };
+            }
+        }
+
+        async function getDistinctCommodities() {
+            const outputDiv = document.getElementById('commoditiesOutput');
+            outputDiv.textContent = 'Loading...';
+            const data = await fetchData(`${API_BASE_URL}/query/commodities`);
+            if (data.error) {
+                outputDiv.className = 'error';
+                outputDiv.textContent = 'Error: ' + data.error;
+            } else {
+                outputDiv.className = '';
+                outputDiv.textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        async function analyzePriceDisparity() {
+            const commodity = document.getElementById('analysisCommodity').value;
+            const date = document.getElementById('analysisDate').value;
+            const outputDiv = document.getElementById('disparityOutput');
+            outputDiv.textContent = 'Loading...';
+
+            if (!commodity || !date) {
+                outputDiv.className = 'error';
+                outputDiv.textContent = 'Please enter both Commodity and Date.';
+                return;
+            }
+
+            const url = `${API_BASE_URL}/query/analysis/commodity?commodity=${encodeURIComponent(commodity)}&date=${date}`;
+            const data = await fetchData(url);
+            if (data.error) {
+                outputDiv.className = 'error';
+                outputDiv.textContent = 'Error: ' + data.error;
+            } else {
+                outputDiv.className = '';
+                outputDiv.textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        async function getPricesByCommodity() {
+            const commodity = document.getElementById('queryCommodity').value;
+            const containerDiv = document.getElementById('pricesTableContainer');
+            containerDiv.innerHTML = 'Loading...';
+
+            if (!commodity) {
+                containerDiv.className = 'error';
+                containerDiv.textContent = 'Please enter a Commodity.';
+                return;
+            }
+
+            const url = `${API_BASE_URL}/query/prices/byCommodity?commodity=${encodeURIComponent(commodity)}`;
+            const data = await fetchData(url);
+            
+            if (data.error) {
+                containerDiv.className = 'error';
+                containerDiv.textContent = 'Error: ' + data.error;
+            } else if (data.length === 0) {
+                containerDiv.className = '';
+                containerDiv.textContent = 'No records found for this commodity.';
+            }
+            else {
+                containerDiv.className = '';
+                containerDiv.innerHTML = createPriceTable(data);
+            }
+        }
+
+        function createPriceTable(records) {
+            let tableHtml = '<table><thead><tr>';
+            const headers = ["State", "District", "Market", "Commodity", "Min Price", "Max Price", "Modal Price", "Date"];
+            headers.forEach(header => {
+                tableHtml += `<th>${header}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
+
+            records.forEach(record => {
+                tableHtml += `<tr>
+                    <td>${record.state}</td>
+                    <td>${record.district}</td>
+                    <td>${record.market}</td>
+                    <td>${record.commodity}</td>
+                    <td>${record.minPrice}</td>
+                    <td>${record.maxPrice}</td>
+                    <td>${record.modalPrice}</td>
+                    <td>${record.scrapedDate}</td>
+                </tr>`;
+            });
+            tableHtml += '</tbody></table>';
+            return tableHtml;
+        }
+
+        // Call getDistinctCommodities on page load for initial display
+        document.addEventListener('DOMContentLoaded', getDistinctCommodities);
+    </script>
+</body>
+</html>
