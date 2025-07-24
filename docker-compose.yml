@@ -1,0 +1,44 @@
+version: '3.8' # Specify the Docker Compose file format version
+
+services:
+  postgres-db:
+    image: postgres:15-alpine # Use a lightweight PostgreSQL 15 image
+    container_name: agrimarket-postgres
+    restart: always # Always restart if it crashes
+    environment:
+      POSTGRES_DB: agrimarket_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD} # <-- IMPORTANT: Use the same password as in price-analysis-service's application.properties
+    ports:
+      - "5432:5432" # Map container port 5432 to host port 5432 (so you can access it directly if needed)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data to avoid losing it when container is removed
+
+  price-analysis-service:
+    build: ./price-analysis-service # Path to your price-analysis-service project relative to this docker-compose file
+    container_name: agrimarket-analysis
+    restart: on-failure
+    ports:
+      - "8082:8082" # Map container port 8082 to host port 8082
+    depends_on:
+      - postgres-db # Ensure postgres-db starts before this service
+    environment:
+      # Pass Spring properties as environment variables, overriding application.properties
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/agrimarket_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD} # <-- IMPORTANT: Use the same password as postgres-db service above
+
+  market-data-collector:
+    build: ./market-data-collector # Path to your market-data-collector project relative to this docker-compose file
+    container_name: agrimarket-collector
+    restart: on-failure
+    ports:
+      - "8081:8081" # Map container port 8081 to host port 8081
+    depends_on:
+      - price-analysis-service # Ensure analysis service starts before collector tries to send data
+    environment:
+      # Pass Spring properties as environment variables, overriding application.properties
+      ANALYSIS_SERVICE_URL: http://price-analysis-service:8082/api/prices/ingest
+
+volumes:
+  postgres_data: # Define the named volume for PostgreSQL data persistence
