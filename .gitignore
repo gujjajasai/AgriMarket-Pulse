@@ -1,0 +1,63 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+release-versions.properties
+*.mvn
+.mvn/
+.spring_boot_libs/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.settings/
+.project
+.classpath
+.buildpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+*.env
+.env
+.env.local
+# Exclude Docker Compose build context directories if they were built inside the root
+# e.g., if you built locally to a temp dir
+# This is less common with our setup but good to be aware of.
+
+# Spring Boot Actuator/DevTools
+*.actuator
+.app/
+
+# Frontend (if applicable in the same repo, which it will be)
+node_modules/
+dist/
+build/
+.cache/
+.vuepress/
+.svelte-kit/
+.next/
+.nuxt/
+/tmp
+/temp
+
+# Specific JARs from Dockerfiles
+!price-analysis-service/target/*.jar
+!market-data-collector/target/*.jar
+
+# Environment-specific files
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
